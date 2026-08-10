@@ -1,0 +1,395 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PTM KSA Aptitude Test</title>
+<style>
+  :root {
+    --purple: #6b46c1;
+    --purple-dark: #4c2d8c;
+    --green: #1a8754;
+    --red: #d64545;
+    --bg: #f5f4fa;
+    --card: #ffffff;
+    --border: #e2dff0;
+    --text: #262133;
+    --muted: #6b6478;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+  }
+  .wrap {
+    max-width: 720px;
+    margin: 0 auto;
+    padding: 24px 16px 80px;
+  }
+  .header {
+    background: var(--purple);
+    color: #fff;
+    padding: 20px 16px;
+    text-align: center;
+  }
+  .header h1 {
+    margin: 0 0 4px;
+    font-size: 20px;
+  }
+  .header p {
+    margin: 0;
+    font-size: 13px;
+    opacity: 0.85;
+  }
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 20px;
+    margin-bottom: 16px;
+  }
+  label {
+    display: block;
+    font-size: 13px;
+    font-weight: 600;
+    margin-bottom: 6px;
+    color: var(--muted);
+  }
+  input[type="text"], input[type="tel"] {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    font-size: 15px;
+    margin-bottom: 16px;
+  }
+  .btn {
+    display: inline-block;
+    background: var(--purple);
+    color: #fff;
+    border: none;
+    padding: 12px 24px;
+    border-radius: 6px;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    width: 100%;
+  }
+  .btn:hover { background: var(--purple-dark); }
+  .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+  .q-num {
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--purple);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    margin-bottom: 6px;
+  }
+  .q-text {
+    font-size: 15px;
+    font-weight: 600;
+    margin-bottom: 12px;
+    line-height: 1.4;
+  }
+  .opt {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 10px 12px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    margin-bottom: 8px;
+    cursor: pointer;
+    font-size: 14px;
+    line-height: 1.4;
+  }
+  .opt:hover { background: #faf9fd; }
+  .opt.selected {
+    border-color: var(--purple);
+    background: #f2eefb;
+  }
+  .opt input { margin-top: 2px; }
+  #timer {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    background: #fff8e6;
+    border-bottom: 1px solid #f0dca0;
+    padding: 8px 16px;
+    text-align: center;
+    font-size: 13px;
+    font-weight: 600;
+    color: #8a6416;
+  }
+  .progress-bar {
+    height: 4px;
+    background: var(--border);
+    border-radius: 2px;
+    overflow: hidden;
+    margin-bottom: 20px;
+  }
+  .progress-fill {
+    height: 100%;
+    background: var(--purple);
+    transition: width 0.2s;
+  }
+  .result-card {
+    text-align: center;
+    padding: 40px 20px;
+  }
+  .result-score {
+    font-size: 48px;
+    font-weight: 800;
+    margin: 8px 0;
+  }
+  .pass { color: var(--green); }
+  .fail { color: var(--red); }
+  .result-msg {
+    font-size: 15px;
+    color: var(--muted);
+    margin-top: 8px;
+    line-height: 1.5;
+  }
+  .hidden { display: none !important; }
+  .error {
+    color: var(--red);
+    font-size: 13px;
+    margin-top: -8px;
+    margin-bottom: 12px;
+  }
+  .loading {
+    text-align: center;
+    padding: 60px 20px;
+    color: var(--muted);
+  }
+  .unanswered-note {
+    font-size: 13px;
+    color: var(--red);
+    margin-bottom: 12px;
+    text-align: center;
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>PTM KSA Aptitude Test</h1>
+  <p>Training center use only. Do not share this link outside a supervised session.</p>
+</div>
+
+<div class="wrap">
+
+  <!-- SCREEN 1: Candidate details -->
+  <div id="screen-start" class="card">
+    <label for="f-name">Full Name *</label>
+    <input type="text" id="f-name" placeholder="Enter your full name">
+    <label for="f-passport">Passport Number *</label>
+    <input type="text" id="f-passport" placeholder="Enter your passport number">
+    <label for="f-mobile">UC Registered Mobile Number *</label>
+    <input type="tel" id="f-mobile" placeholder="Enter your registered mobile number">
+    <div id="start-error" class="error hidden"></div>
+    <button class="btn" id="btn-start">Start Test</button>
+  </div>
+
+  <!-- SCREEN 2: Loading -->
+  <div id="screen-loading" class="loading hidden">Loading your questions…</div>
+
+  <!-- SCREEN 3: Quiz -->
+  <div id="screen-quiz" class="hidden">
+    <div id="timer">Time remaining: 20:00</div>
+    <div class="wrap" style="padding-top:16px;">
+      <div class="progress-bar"><div class="progress-fill" id="progress-fill" style="width:0%"></div></div>
+      <div id="questions-container"></div>
+      <div id="unanswered-note" class="unanswered-note hidden">Please answer all questions before submitting.</div>
+      <button class="btn" id="btn-submit">Submit Test</button>
+    </div>
+  </div>
+
+  <!-- SCREEN 4: Result -->
+  <div id="screen-result" class="card result-card hidden">
+    <div id="result-icon" style="font-size:40px;"></div>
+    <div class="result-score" id="result-score">--</div>
+    <div id="result-label" style="font-size:18px;font-weight:700;"></div>
+    <div class="result-msg" id="result-msg"></div>
+  </div>
+
+</div>
+
+<script>
+(function() {
+  const TEST_DURATION_SEC = 20 * 60;
+  let quizQuestions = [];
+  let setId = "";
+  let candidateInfo = {};
+  let timerInterval = null;
+  let secondsLeft = TEST_DURATION_SEC;
+
+  const el = (id) => document.getElementById(id);
+  const show = (id) => el(id).classList.remove("hidden");
+  const hide = (id) => el(id).classList.add("hidden");
+
+  el("btn-start").addEventListener("click", startTest);
+
+  async function startTest() {
+    const name = el("f-name").value.trim();
+    const passport = el("f-passport").value.trim();
+    const mobile = el("f-mobile").value.trim();
+    const errEl = el("start-error");
+
+    if (!name || !passport || !mobile) {
+      errEl.textContent = "Please fill in all fields before starting.";
+      show("start-error");
+      return;
+    }
+    hide("start-error");
+    candidateInfo = { name, passport, mobile };
+
+    hide("screen-start");
+    show("screen-loading");
+
+    try {
+      const res = await fetch("/api/get-quiz");
+      if (!res.ok) throw new Error("Failed to load quiz");
+      const data = await res.json();
+      quizQuestions = data.questions;
+      setId = data.setId;
+    } catch (e) {
+      el("screen-loading").textContent = "Could not load the test. Please refresh and try again.";
+      return;
+    }
+
+    hide("screen-loading");
+    renderQuiz();
+    show("screen-quiz");
+    startTimer();
+  }
+
+  function renderQuiz() {
+    const container = el("questions-container");
+    container.innerHTML = "";
+    quizQuestions.forEach((q, idx) => {
+      const qDiv = document.createElement("div");
+      qDiv.className = "card";
+      qDiv.dataset.qid = q.id;
+
+      const num = document.createElement("div");
+      num.className = "q-num";
+      num.textContent = "Question " + (idx + 1) + " of " + quizQuestions.length;
+      qDiv.appendChild(num);
+
+      const text = document.createElement("div");
+      text.className = "q-text";
+      text.textContent = q.q;
+      qDiv.appendChild(text);
+
+      q.opts.forEach((optText, optIdx) => {
+        const optDiv = document.createElement("label");
+        optDiv.className = "opt";
+        const radio = document.createElement("input");
+        radio.type = "radio";
+        radio.name = "q_" + q.id;
+        radio.value = optText;
+        radio.addEventListener("change", () => {
+          qDiv.querySelectorAll(".opt").forEach((o) => o.classList.remove("selected"));
+          optDiv.classList.add("selected");
+          updateProgress();
+        });
+        const span = document.createElement("span");
+        span.textContent = optText;
+        optDiv.appendChild(radio);
+        optDiv.appendChild(span);
+        qDiv.appendChild(optDiv);
+      });
+
+      container.appendChild(qDiv);
+    });
+  }
+
+  function updateProgress() {
+    const answered = quizQuestions.filter((q) =>
+      document.querySelector('input[name="q_' + q.id + '"]:checked')
+    ).length;
+    const pct = Math.round((answered / quizQuestions.length) * 100);
+    el("progress-fill").style.width = pct + "%";
+  }
+
+  function startTimer() {
+    secondsLeft = TEST_DURATION_SEC;
+    updateTimerDisplay();
+    timerInterval = setInterval(() => {
+      secondsLeft -= 1;
+      updateTimerDisplay();
+      if (secondsLeft <= 0) {
+        clearInterval(timerInterval);
+        submitTest(true);
+      }
+    }, 1000);
+  }
+
+  function updateTimerDisplay() {
+    const m = Math.floor(secondsLeft / 60);
+    const s = secondsLeft % 60;
+    el("timer").textContent = "Time remaining: " + m + ":" + String(s).padStart(2, "0");
+  }
+
+  el("btn-submit").addEventListener("click", () => submitTest(false));
+
+  async function submitTest(auto) {
+    const answers = quizQuestions.map((q) => {
+      const checked = document.querySelector('input[name="q_' + q.id + '"]:checked');
+      return { id: q.id, selected: checked ? checked.value : null };
+    });
+
+    const unanswered = answers.filter((a) => a.selected === null).length;
+    if (!auto && unanswered > 0) {
+      show("unanswered-note");
+      return;
+    }
+    hide("unanswered-note");
+
+    if (timerInterval) clearInterval(timerInterval);
+    el("btn-submit").disabled = true;
+    el("btn-submit").textContent = "Submitting…";
+
+    try {
+      const res = await fetch("/api/submit-result", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          name: candidateInfo.name,
+          passport: candidateInfo.passport,
+          mobile: candidateInfo.mobile,
+          setId: setId,
+          answers: answers,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Submission failed");
+      showResult(data);
+    } catch (e) {
+      el("btn-submit").disabled = false;
+      el("btn-submit").textContent = "Submit Test";
+      alert("There was a problem submitting your test. Please check your connection and try again.");
+    }
+  }
+
+  function showResult(data) {
+    hide("screen-quiz");
+    const isPass = data.result === "PASS";
+    el("result-icon").textContent = isPass ? "✅" : "—";
+    el("result-score").textContent = data.score + " / " + data.total;
+    el("result-score").className = "result-score " + (isPass ? "pass" : "fail");
+    el("result-label").textContent = isPass ? "PASS" : "FAIL";
+    el("result-label").className = isPass ? "pass" : "fail";
+    el("result-msg").textContent = isPass
+      ? "Congratulations! You scored " + data.percentage + "%. You will now proceed to the personal interview round. Our team will contact you with the next steps."
+      : "You scored " + data.percentage + "%, which is below the 70% passing mark for this round. Thank you for your time.";
+    show("screen-result");
+  }
+})();
+</script>
+
+</body>
+</html>
