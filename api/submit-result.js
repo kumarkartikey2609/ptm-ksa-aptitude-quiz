@@ -1,4 +1,5 @@
 const { QUESTIONS } = require("./_shared/questions.js");
+const { appendRow } = require("./_shared/sheets.js");
 
 const PASS_THRESHOLD = 70;
 
@@ -44,6 +45,25 @@ module.exports = async (req, res) => {
 
   const percentage = total > 0 ? Math.round((score / total) * 100) : 0;
   const result = percentage >= PASS_THRESHOLD ? "PASS" : "FAIL";
+  const submittedAt = new Date().toISOString();
+
+  // Write to Google Sheet immediately (synchronously, within this request).
+  // Best-effort: a Sheets failure should not block the candidate's result.
+  try {
+    await appendRow([
+      submittedAt,
+      name,
+      passport,
+      mobile,
+      setId,
+      score,
+      total,
+      percentage,
+      result,
+    ]);
+  } catch (e) {
+    console.error("Sheets append failed:", e);
+  }
 
   const token = process.env.GITHUB_TOKEN;
   const owner = process.env.GITHUB_OWNER;
@@ -63,7 +83,7 @@ module.exports = async (req, res) => {
     "**Question Set ID:** " + setId,
     "**Score:** " + score + " / " + total + " (" + percentage + "%)",
     "**Result:** " + result,
-    "**Submitted:** " + new Date().toISOString(),
+    "**Submitted:** " + submittedAt,
   ].join("\n");
 
   try {
