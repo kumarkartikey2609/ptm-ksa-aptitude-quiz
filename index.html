@@ -57,7 +57,7 @@
     margin-bottom: 6px;
     color: var(--muted);
   }
-  input[type="text"], input[type="tel"] {
+  input[type="text"], input[type="tel"], input[type="date"] {
     width: 100%;
     padding: 10px 12px;
     border: 1px solid var(--border);
@@ -185,10 +185,14 @@
   <div id="screen-start" class="card">
     <label for="f-name">Full Name *</label>
     <input type="text" id="f-name" placeholder="Enter your full name">
-    <label for="f-passport">Passport Number *</label>
+    <label for="f-dob">Date of Birth *</label>
+    <input type="date" id="f-dob">
+    <label for="f-city">Interview City *</label>
+    <input type="text" id="f-city" placeholder="Enter the interview city">
+    <label for="f-passport">Passport Number (optional)</label>
     <input type="text" id="f-passport" placeholder="Enter your passport number">
-    <label for="f-mobile">UC Registered Mobile Number *</label>
-    <input type="tel" id="f-mobile" placeholder="Enter your registered mobile number">
+    <label for="f-region">Province / City / Region *</label>
+    <input type="text" id="f-region" placeholder="Enter your province, city or region">
     <div id="start-error" class="error hidden"></div>
     <button class="btn" id="btn-start">Start Test</button>
   </div>
@@ -234,17 +238,19 @@
 
   async function startTest() {
     const name = el("f-name").value.trim();
+    const dob = el("f-dob").value.trim();
+    const interviewCity = el("f-city").value.trim();
     const passport = el("f-passport").value.trim();
-    const mobile = el("f-mobile").value.trim();
+    const region = el("f-region").value.trim();
     const errEl = el("start-error");
 
-    if (!name || !passport || !mobile) {
-      errEl.textContent = "Please fill in all fields before starting.";
+    if (!name || !dob || !interviewCity || !region) {
+      errEl.textContent = "Please fill in all required fields before starting.";
       show("start-error");
       return;
     }
     hide("start-error");
-    candidateInfo = { name, passport, mobile };
+    candidateInfo = { name, dob, interviewCity, passport, region };
 
     hide("screen-start");
     show("screen-loading");
@@ -359,8 +365,10 @@
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
           name: candidateInfo.name,
+          dob: candidateInfo.dob,
+          interviewCity: candidateInfo.interviewCity,
           passport: candidateInfo.passport,
-          mobile: candidateInfo.mobile,
+          region: candidateInfo.region,
           setId: setId,
           answers: answers,
         }),
@@ -385,7 +393,7 @@
     el("result-label").className = isPass ? "pass" : "fail";
     el("result-msg").textContent = isPass
       ? "Congratulations! You scored " + data.percentage + "%. You will now proceed to the personal interview round. Our team will contact you with the next steps."
-      : "You scored " + data.percentage + "%, which is below the 70% passing mark for this round. Thank you for your time.";
+      : "You scored " + data.percentage + "%, which is below the 60% passing mark for this round. Thank you for your time.";
     show("screen-result");
   }
 })();
