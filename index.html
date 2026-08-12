@@ -183,13 +183,17 @@
 
   <!-- SCREEN 1: Candidate details -->
   <div id="screen-start" class="card">
+    <label for="f-agency">Agency Name *</label>
+    <input type="text" id="f-agency" placeholder="Enter the agency name">
+    <label for="f-idate">Interview Date *</label>
+    <input type="date" id="f-idate">
     <label for="f-name">Full Name *</label>
     <input type="text" id="f-name" placeholder="Enter your full name">
     <label for="f-dob">Date of Birth *</label>
     <input type="date" id="f-dob">
     <label for="f-city">Interview City *</label>
     <input type="text" id="f-city" placeholder="Enter the interview city">
-    <label for="f-passport">Passport Number (optional)</label>
+    <label for="f-passport">Passport Number</label>
     <input type="text" id="f-passport" placeholder="Enter your passport number">
     <label for="f-region">Province / City / Region *</label>
     <input type="text" id="f-region" placeholder="Enter your province, city or region">
@@ -233,9 +237,20 @@
   const show = (id) => el(id).classList.remove("hidden");
   const hide = (id) => el(id).classList.add("hidden");
 
+  // Default Interview Date to today
+  (function setDefaultInterviewDate() {
+    const d = new Date();
+    const yyyy = d.getFullYear();
+    const mm = String(d.getMonth() + 1).padStart(2, "0");
+    const dd = String(d.getDate()).padStart(2, "0");
+    el("f-idate").value = yyyy + "-" + mm + "-" + dd;
+  })();
+
   el("btn-start").addEventListener("click", startTest);
 
   async function startTest() {
+    const agencyName = el("f-agency").value.trim();
+    const interviewDate = el("f-idate").value.trim();
     const name = el("f-name").value.trim();
     const dob = el("f-dob").value.trim();
     const interviewCity = el("f-city").value.trim();
@@ -243,13 +258,13 @@
     const region = el("f-region").value.trim();
     const errEl = el("start-error");
 
-    if (!name || !dob || !interviewCity || !region) {
+    if (!agencyName || !interviewDate || !name || !dob || !interviewCity || !region) {
       errEl.textContent = "Please fill in all required fields before starting.";
       show("start-error");
       return;
     }
     hide("start-error");
-    candidateInfo = { name, dob, interviewCity, passport, region };
+    candidateInfo = { agencyName, interviewDate, name, dob, interviewCity, passport, region };
 
     hide("screen-start");
     show("screen-loading");
@@ -363,6 +378,8 @@
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
+          agencyName: candidateInfo.agencyName,
+          interviewDate: candidateInfo.interviewDate,
           name: candidateInfo.name,
           dob: candidateInfo.dob,
           interviewCity: candidateInfo.interviewCity,
