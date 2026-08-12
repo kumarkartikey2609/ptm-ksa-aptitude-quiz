@@ -213,10 +213,9 @@
 
   <!-- SCREEN 4: Result -->
   <div id="screen-result" class="card result-card hidden">
-    <div id="result-icon" style="font-size:40px;"></div>
-    <div class="result-score" id="result-score">--</div>
-    <div id="result-label" style="font-size:18px;font-weight:700;"></div>
-    <div class="result-msg" id="result-msg"></div>
+    <div id="result-icon" style="font-size:40px;">🙏</div>
+    <div id="result-label" style="font-size:18px;font-weight:700;">Thank you for giving the test</div>
+    <div class="result-msg" id="result-msg">A result will be shared with you soon.</div>
   </div>
 
 </div>
@@ -385,15 +384,6 @@
 
   function showResult(data) {
     hide("screen-quiz");
-    const isPass = data.result === "PASS";
-    el("result-icon").textContent = isPass ? "✅" : "—";
-    el("result-score").textContent = data.score + " / " + data.total;
-    el("result-score").className = "result-score " + (isPass ? "pass" : "fail");
-    el("result-label").textContent = isPass ? "PASS" : "FAIL";
-    el("result-label").className = isPass ? "pass" : "fail";
-    el("result-msg").textContent = isPass
-      ? "Congratulations! You scored " + data.percentage + "%. You will now proceed to the personal interview round. Our team will contact you with the next steps."
-      : "You scored " + data.percentage + "%, which is below the 60% passing mark for this round. Thank you for your time.";
     show("screen-result");
   }
 })();
