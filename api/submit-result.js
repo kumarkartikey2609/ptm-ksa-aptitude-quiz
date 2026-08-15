@@ -26,10 +26,12 @@ module.exports = async (req, res) => {
   const interviewCity = String(body.interviewCity || "").trim().slice(0, 100);
   const passport = String(body.passport || "").trim().slice(0, 100);
   const region = String(body.region || "").trim().slice(0, 150);
+  const experience = String(body.experience || "").trim().slice(0, 2000);
+  const education = String(body.education || "").trim().slice(0, 1000);
   const setId = String(body.setId || "").slice(0, 50);
   const answers = Array.isArray(body.answers) ? body.answers : [];
 
-  if (!agencyName || !interviewDate || !name || !dob || !interviewCity || !region || answers.length === 0) {
+  if (!agencyName || !interviewDate || !name || !dob || !interviewCity || !region || !experience || !education || answers.length === 0) {
     res.status(400).json({ error: "Missing required fields" });
     return;
   }
@@ -68,6 +70,9 @@ module.exports = async (req, res) => {
       result,
       agencyName,
       interviewDate,
+      "", // column N is already in use by another process on this sheet — leave blank
+      experience,
+      education,
     ]);
   } catch (e) {
     console.error("Sheets append failed:", e);
@@ -92,6 +97,8 @@ module.exports = async (req, res) => {
     "**Interview City:** " + interviewCity,
     "**Passport Number:** " + (passport || "-"),
     "**Province/City/Region:** " + region,
+    "**Past Working Experience:** " + experience,
+    "**Educational Background:** " + education,
     "**Question Set ID:** " + setId,
     "**Score:** " + score + " / " + total + " (" + percentage + "%)",
     "**Result:** " + result,
