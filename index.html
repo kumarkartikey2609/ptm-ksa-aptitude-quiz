@@ -228,4 +228,196 @@
   <div id="screen-result" class="card result-card hidden">
     <div id="result-icon" style="font-size:40px;">🙏</div>
     <div id="result-label" style="font-size:18px;font-weight:700;">Thank you for giving the test</div>
-    <div class="result-msg" id="result-msg">A result will be shared
+    <div class="result-msg" id="result-msg">A result will be shared with you soon.</div>
+  </div>
+
+</div>
+
+<script>
+(function() {
+  const TEST_DURATION_SEC = 20 * 60;
+  let quizQuestions = [];
+  let setId = "";
+  let candidateInfo = {};
+  let timerInterval = null;
+  let secondsLeft = TEST_DURATION_SEC;
+
+  const el = (id) => document.getElementById(id);
+  const show = (id) => el(id).classList.remove("hidden");
+  const hide = (id) => el(id).classList.add("hidden");
+
+  // Default Interview Date to today
+  (function setDefaultInterviewDate() {
+    const d = new Date();
+    const yyyy = d.getFullYear();
+    const mm = String(d.getMonth() + 1).padStart(2, "0");
+    const dd = String(d.getDate()).padStart(2, "0");
+    el("f-idate").value = yyyy + "-" + mm + "-" + dd;
+  })();
+
+  el("btn-start").addEventListener("click", startTest);
+
+  async function startTest() {
+    const agencyName = el("f-agency").value.trim();
+    const interviewDate = el("f-idate").value.trim();
+    const name = el("f-name").value.trim();
+    const dob = el("f-dob").value.trim();
+    const interviewCity = el("f-city").value.trim();
+    const passport = el("f-passport").value.trim();
+    const region = el("f-region").value.trim();
+    const experience = el("f-experience").value.trim();
+    const education = el("f-education").value.trim();
+    const errEl = el("start-error");
+
+    if (!agencyName || !interviewDate || !name || !dob || !interviewCity || !region || !experience || !education) {
+      errEl.textContent = "Please fill in all required fields before starting.";
+      show("start-error");
+      return;
+    }
+    hide("start-error");
+    candidateInfo = { agencyName, interviewDate, name, dob, interviewCity, passport, region, experience, education };
+
+    hide("screen-start");
+    show("screen-loading");
+
+    try {
+      const res = await fetch("/api/get-quiz");
+      if (!res.ok) throw new Error("Failed to load quiz");
+      const data = await res.json();
+      quizQuestions = data.questions;
+      setId = data.setId;
+    } catch (e) {
+      el("screen-loading").textContent = "Could not load the test. Please refresh and try again.";
+      return;
+    }
+
+    hide("screen-loading");
+    renderQuiz();
+    show("screen-quiz");
+    startTimer();
+  }
+
+  function renderQuiz() {
+    const container = el("questions-container");
+    container.innerHTML = "";
+    quizQuestions.forEach((q, idx) => {
+      const qDiv = document.createElement("div");
+      qDiv.className = "card";
+      qDiv.dataset.qid = q.id;
+
+      const num = document.createElement("div");
+      num.className = "q-num";
+      num.textContent = "Question " + (idx + 1) + " of " + quizQuestions.length;
+      qDiv.appendChild(num);
+
+      const text = document.createElement("div");
+      text.className = "q-text";
+      text.textContent = q.q;
+      qDiv.appendChild(text);
+
+      q.opts.forEach((optText, optIdx) => {
+        const optDiv = document.createElement("label");
+        optDiv.className = "opt";
+        const radio = document.createElement("input");
+        radio.type = "radio";
+        radio.name = "q_" + q.id;
+        radio.value = optText;
+        radio.addEventListener("change", () => {
+          qDiv.querySelectorAll(".opt").forEach((o) => o.classList.remove("selected"));
+          optDiv.classList.add("selected");
+          updateProgress();
+        });
+        const span = document.createElement("span");
+        span.textContent = optText;
+        optDiv.appendChild(radio);
+        optDiv.appendChild(span);
+        qDiv.appendChild(optDiv);
+      });
+
+      container.appendChild(qDiv);
+    });
+  }
+
+  function updateProgress() {
+    const answered = quizQuestions.filter((q) =>
+      document.querySelector('input[name="q_' + q.id + '"]:checked')
+    ).length;
+    const pct = Math.round((answered / quizQuestions.length) * 100);
+    el("progress-fill").style.width = pct + "%";
+  }
+
+  function startTimer() {
+    secondsLeft = TEST_DURATION_SEC;
+    updateTimerDisplay();
+    timerInterval = setInterval(() => {
+      secondsLeft -= 1;
+      updateTimerDisplay();
+      if (secondsLeft <= 0) {
+        clearInterval(timerInterval);
+        submitTest(true);
+      }
+    }, 1000);
+  }
+
+  function updateTimerDisplay() {
+    const m = Math.floor(secondsLeft / 60);
+    const s = secondsLeft % 60;
+    el("timer").textContent = "Time remaining: " + m + ":" + String(s).padStart(2, "0");
+  }
+
+  el("btn-submit").addEventListener("click", () => submitTest(false));
+
+  async function submitTest(auto) {
+    const answers = quizQuestions.map((q) => {
+      const checked = document.querySelector('input[name="q_' + q.id + '"]:checked');
+      return { id: q.id, selected: checked ? checked.value : null };
+    });
+
+    const unanswered = answers.filter((a) => a.selected === null).length;
+    if (!auto && unanswered > 0) {
+      show("unanswered-note");
+      return;
+    }
+    hide("unanswered-note");
+
+    if (timerInterval) clearInterval(timerInterval);
+    el("btn-submit").disabled = true;
+    el("btn-submit").textContent = "Submitting…";
+
+    try {
+      const res = await fetch("/api/submit-result", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          agencyName: candidateInfo.agencyName,
+          interviewDate: candidateInfo.interviewDate,
+          name: candidateInfo.name,
+          dob: candidateInfo.dob,
+          interviewCity: candidateInfo.interviewCity,
+          passport: candidateInfo.passport,
+          region: candidateInfo.region,
+          experience: candidateInfo.experience,
+          education: candidateInfo.education,
+          setId: setId,
+          answers: answers,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Submission failed");
+      showResult(data);
+    } catch (e) {
+      el("btn-submit").disabled = false;
+      el("btn-submit").textContent = "Submit Test";
+      alert("There was a problem submitting your test. Please check your connection and try again.");
+    }
+  }
+
+  function showResult(data) {
+    hide("screen-quiz");
+    show("screen-result");
+  }
+})();
+</script>
+
+</body>
+</html>
