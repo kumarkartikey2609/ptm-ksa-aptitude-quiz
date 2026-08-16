@@ -51,13 +51,30 @@ module.exports = async (req, res) => {
 
   const percentage = total > 0 ? Math.round((score / total) * 100) : 0;
   const result = percentage >= PASS_THRESHOLD ? "PASS" : "FAIL";
-  const submittedAt = new Date().toISOString();
+  const now = new Date();
+  const submittedAt = now.toISOString();
+
+  // Record the submission date/time in KSA local time (Asia/Riyadh, UTC+3),
+  // not raw UTC — this is what actually gets written into the Sheet.
+  const ksaDate = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Riyadh",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(now); // e.g. "2026-08-16"
+  const ksaTime = new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Asia/Riyadh",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: false,
+  }).format(now); // e.g. "19:42:05"
 
   // Write to Google Sheet immediately (synchronously, within this request).
   // Best-effort: a Sheets failure should not block the candidate's result.
   try {
     await appendRow([
-      submittedAt,
+      ksaDate,
       name,
       dob,
       interviewCity,
@@ -73,6 +90,7 @@ module.exports = async (req, res) => {
       "", // column N is already in use by another process on this sheet — leave blank
       experience,
       education,
+      ksaTime, // column Q — submission time in KSA local time
     ]);
   } catch (e) {
     console.error("Sheets append failed:", e);
@@ -102,7 +120,7 @@ module.exports = async (req, res) => {
     "**Question Set ID:** " + setId,
     "**Score:** " + score + " / " + total + " (" + percentage + "%)",
     "**Result:** " + result,
-    "**Submitted:** " + submittedAt,
+    "**Submitted:** " + ksaDate + " " + ksaTime + " (KSA time)",
   ].join("\n");
 
   try {
