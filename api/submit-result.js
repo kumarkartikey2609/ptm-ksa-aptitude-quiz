@@ -40,13 +40,26 @@ module.exports = async (req, res) => {
   let score = 0;
   let total = 0;
   const seen = new Set();
+  // Per-question detail (question text, what the candidate picked, whether it
+  // was correct) — kept in the order the candidate answered them, so we can
+  // include a full answer breakdown in the GitHub Issue for internal review.
+  const breakdown = [];
   for (const a of answers) {
     const q = byId.get(a.id);
     if (!q || seen.has(a.id)) continue;
     seen.add(a.id);
     total += 1;
     const correctText = q.opts[q.correct];
-    if (a.selected === correctText) score += 1;
+    const selectedText = String(a.selected || "");
+    const isCorrect = selectedText === correctText;
+    if (isCorrect) score += 1;
+    breakdown.push({
+      questionText: q.q,
+      category: q.cat,
+      selected: selectedText || "(no answer)",
+      correctText,
+      isCorrect,
+    });
   }
 
   const percentage = total > 0 ? Math.round((score / total) * 100) : 0;
@@ -72,6 +85,10 @@ module.exports = async (req, res) => {
 
   // Write to Google Sheet immediately (synchronously, within this request).
   // Best-effort: a Sheets failure should not block the candidate's result.
+  // NOTE: the Sheet intentionally stays a clean, scannable summary — it does
+  // NOT get the per-question answer breakdown. That level of detail goes to
+  // the GitHub Issue body instead (see below), which is the place to review
+  // exactly what a candidate answered.
   try {
     await appendRow([
       ksaDate,
@@ -107,6 +124,18 @@ module.exports = async (req, res) => {
 
   const passLabel = result === "PASS" ? "pass" : "fail";
   const title = name + " — " + result + " (" + score + "/" + total + ")";
+
+  const breakdownLines = breakdown.map((b, i) => {
+    const mark = b.isCorrect ? "✅" : "❌";
+    let line =
+      mark + " **Q" + (i + 1) + ". [" + b.category + "]** " + b.questionText + "\n" +
+      "   Selected: " + b.selected;
+    if (!b.isCorrect) {
+      line += "\n   Correct answer: " + b.correctText;
+    }
+    return line;
+  });
+
   const issueBody = [
     "**Agency Name:** " + agencyName,
     "**Interview Date:** " + interviewDate,
@@ -121,6 +150,12 @@ module.exports = async (req, res) => {
     "**Score:** " + score + " / " + total + " (" + percentage + "%)",
     "**Result:** " + result,
     "**Submitted:** " + ksaDate + " " + ksaTime + " (KSA time)",
+    "",
+    "---",
+    "",
+    "### Answer Breakdown",
+    "",
+    breakdownLines.join("\n\n"),
   ].join("\n");
 
   try {
