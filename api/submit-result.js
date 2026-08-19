@@ -1,7 +1,7 @@
 const { QUESTIONS } = require("./_shared/questions.js");
 const { appendRow } = require("./_shared/sheets.js");
 
-const PASS_THRESHOLD = 60; // at least 12 of 20 questions must be correct
+const PASS_THRESHOLD = 70; // at least 14 of 20 questions must be correct
 
 module.exports = async (req, res) => {
   if (req.method !== "POST") {
