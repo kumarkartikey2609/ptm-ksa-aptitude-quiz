@@ -3,6 +3,36 @@ const { appendRow } = require("./_shared/sheets.js");
 
 const PASS_THRESHOLD = 70; // at least 14 of 20 questions must be correct
 
+// Returns height in centimetres, or null if it cannot be read with confidence.
+// Accepts: "165", "165 cm", "1.65 m", "1.65", "5 ft 4 in", "5ft4", "5'4", "5'4\"", "5 feet", "5 feet 4 inches".
+// A bare number between 3 and 8 (like "5.4") is rejected on purpose: it could be 5.4 ft or 5 ft 4 in.
+function parseHeightCm(raw) {
+  let s = String(raw || "").toLowerCase().trim();
+  if (!s) return null;
+  s = s.replace(/[‘’′`´]/g, "'").replace(/[“”″]/g, '"');
+  s = s.replace(/''/g, '"').replace(/\./g, (m, i, str) => (/\d/.test(str[i - 1] || "") && /\d/.test(str[i + 1] || "") ? "." : " "));
+  s = s.replace(/\s+/g, " ").trim();
+  let cm = null, m;
+
+  // centimetres: "165", "165 cm", "165 centimeters"
+  if ((m = s.match(/^(\d{2,3}(?:\.\d+)?)\s*(?:cm|cms|centimet(?:er|re)s?)?$/))) {
+    cm = parseFloat(m[1]);
+  }
+  // metres: "1.65 m", "1.65 meters", or a bare decimal like "1.65"
+  else if ((m = s.match(/^(\d(?:\.\d+)?)\s*(?:m|mt|mts|met(?:er|re)s?)$/)) || (m = s.match(/^([12]\.\d+)$/))) {
+    cm = parseFloat(m[1]) * 100;
+  }
+  // feet and inches: "5 ft 4 in", "5ft4", "5'4", "5'4\"", "5 feet", "5 feet 4 inches"
+  else if ((m = s.match(/^(\d)\s*(?:ft|feet|foot|')\s*(?:(\d{1,2}(?:\.\d+)?)\s*(?:in|ins|inch|inches|")?)?$/))) {
+    const ft = parseFloat(m[1]);
+    const inch = m[2] ? parseFloat(m[2]) : 0;
+    if (inch >= 12) return null;
+    cm = ft * 30.48 + inch * 2.54;
+  }
+  if (cm === null || !(cm >= 100 && cm <= 250)) return null;
+  return Math.round(cm * 10) / 10;
+}
+
 module.exports = async (req, res) => {
   if (req.method !== "POST") {
     res.status(405).send("Method not allowed");
@@ -32,6 +62,13 @@ module.exports = async (req, res) => {
   // server-side so a candidate with an old, already-open page can still submit.
   const height = String(body.height || "").trim().slice(0, 50);
   const weight = String(body.weight || "").trim().slice(0, 20);
+  // BMI = kg / (metres squared), 1 decimal. Left blank if height/weight can't be read.
+  const heightCm = parseHeightCm(height);
+  const weightKg = parseFloat(weight);
+  const bmi =
+    heightCm && weightKg >= 20 && weightKg <= 250
+      ? Math.round((weightKg / Math.pow(heightCm / 100, 2)) * 10) / 10
+      : "";
   const setId = String(body.setId || "").slice(0, 50);
   const answers = Array.isArray(body.answers) ? body.answers : [];
 
@@ -115,6 +152,7 @@ module.exports = async (req, res) => {
       ksaTime, // column Q — submission time in KSA local time
       height, // column R — Height (cm / feet)
       weight, // column S — Weight (kg)
+      bmi, // column T — BMI (calculated)
     ]);
     sheetOk = true;
   } catch (e) {
@@ -151,6 +189,7 @@ module.exports = async (req, res) => {
     "**Educational Background:** " + education,
     "**Height:** " + (height || "-"),
     "**Weight (kg):** " + (weight || "-"),
+    "**BMI:** " + (bmi === "" ? "-" : bmi),
     "**Question Set ID:** " + setId,
     "**Score:** " + score + " / " + total + " (" + percentage + "%)",
     "**Result:** " + result,
