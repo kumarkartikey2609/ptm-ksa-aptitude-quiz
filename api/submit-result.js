@@ -89,6 +89,7 @@ module.exports = async (req, res) => {
   // NOT get the per-question answer breakdown. That level of detail goes to
   // the GitHub Issue body instead (see below), which is the place to review
   // exactly what a candidate answered.
+  let sheetOk = false;
   try {
     await appendRow([
       ksaDate,
@@ -109,6 +110,7 @@ module.exports = async (req, res) => {
       education,
       ksaTime, // column Q — submission time in KSA local time
     ]);
+    sheetOk = true;
   } catch (e) {
     console.error("Sheets append failed:", e);
   }
@@ -116,11 +118,6 @@ module.exports = async (req, res) => {
   const token = process.env.GITHUB_TOKEN;
   const owner = process.env.GITHUB_OWNER;
   const repo = process.env.GITHUB_REPO;
-
-  if (!token || !owner || !repo) {
-    res.status(500).json({ error: "Server not configured" });
-    return;
-  }
 
   const passLabel = result === "PASS" ? "pass" : "fail";
   const title = name + " — " + result + " (" + score + "/" + total + ")";
@@ -158,29 +155,47 @@ module.exports = async (req, res) => {
     breakdownLines.join("\n\n"),
   ].join("\n");
 
-  try {
-    const ghRes = await fetch("https://api.github.com/repos/" + owner + "/" + repo + "/issues", {
-      method: "POST",
-      headers: {
-        Authorization: "Bearer " + token,
-        Accept: "application/vnd.github+json",
-        "Content-Type": "application/json",
-        "User-Agent": "ptm-ksa-aptitude-quiz",
-      },
-      body: JSON.stringify({
-        title,
-        body: issueBody,
-        labels: [passLabel],
-      }),
-    });
-
-    if (!ghRes.ok) {
-      const errText = await ghRes.text();
-      res.status(502).json({ error: "GitHub error", detail: errText });
-      return;
+  // GitHub Issue (answer breakdown) is best-effort too. If the Sheet row was
+  // saved, a GitHub problem (expired token, rate limit, outage) must NOT make
+  // the candidate see an error — and retrying would only create a duplicate
+  // Sheet row. We only return an error if NEITHER place saved the result.
+  let githubOk = false;
+  let githubError = "";
+  if (!token || !owner || !repo) {
+    githubError = "GitHub env vars not configured";
+  } else {
+    try {
+      const ghRes = await fetch("https://api.github.com/repos/" + owner + "/" + repo + "/issues", {
+        method: "POST",
+        headers: {
+          Authorization: "Bearer " + token,
+          Accept: "application/vnd.github+json",
+          "Content-Type": "application/json",
+          "User-Agent": "ptm-ksa-aptitude-quiz",
+        },
+        body: JSON.stringify({
+          title,
+          body: issueBody,
+          labels: [passLabel],
+        }),
+      });
+      if (ghRes.ok) {
+        githubOk = true;
+      } else {
+        githubError = "GitHub " + ghRes.status + ": " + (await ghRes.text());
+      }
+    } catch (e) {
+      githubError = "GitHub request failed: " + String(e);
     }
-  } catch (e) {
-    res.status(502).json({ error: "GitHub request failed", detail: String(e) });
+  }
+
+  if (!githubOk) {
+    // Shows up in Vercel > Logs so a broken token is noticed quickly.
+    console.error("GitHub issue NOT created for " + name + " (" + result + " " + score + "/" + total + "): " + githubError);
+  }
+
+  if (!sheetOk && !githubOk) {
+    res.status(502).json({ error: "Could not save result", detail: githubError });
     return;
   }
 
