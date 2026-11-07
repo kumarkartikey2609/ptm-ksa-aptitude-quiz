@@ -28,6 +28,10 @@ module.exports = async (req, res) => {
   const region = String(body.region || "").trim().slice(0, 150);
   const experience = String(body.experience || "").trim().slice(0, 2000);
   const education = String(body.education || "").trim().slice(0, 1000);
+  // Height (free text: "165 cm" or "5 ft 4 in") and weight (kg). Not enforced
+  // server-side so a candidate with an old, already-open page can still submit.
+  const height = String(body.height || "").trim().slice(0, 50);
+  const weight = String(body.weight || "").trim().slice(0, 20);
   const setId = String(body.setId || "").slice(0, 50);
   const answers = Array.isArray(body.answers) ? body.answers : [];
 
@@ -105,10 +109,12 @@ module.exports = async (req, res) => {
       result,
       agencyName,
       interviewDate,
-      "", // column N is already in use by another process on this sheet — leave blank
-      experience,
-      education,
+      experience, // column N — Past Working Experience
+      education, // column O — Educational Background
+      "", // column P — intentionally blank (no header)
       ksaTime, // column Q — submission time in KSA local time
+      height, // column R — Height (cm / feet)
+      weight, // column S — Weight (kg)
     ]);
     sheetOk = true;
   } catch (e) {
@@ -143,6 +149,8 @@ module.exports = async (req, res) => {
     "**Province/City/Region:** " + region,
     "**Past Working Experience:** " + experience,
     "**Educational Background:** " + education,
+    "**Height:** " + (height || "-"),
+    "**Weight (kg):** " + (weight || "-"),
     "**Question Set ID:** " + setId,
     "**Score:** " + score + " / " + total + " (" + percentage + "%)",
     "**Result:** " + result,
