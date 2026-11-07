@@ -69,7 +69,13 @@ async function appendRow(values) {
 
   const accessToken = await getAccessToken();
 
-  const range = "Sheet1!A:S";
+  // IMPORTANT: Google's append "finds a table" inside this range and starts the
+  // new row at that table's first column. If we give it A:S, stray values in
+  // columns Q-S can make it think the table starts at Q and the row lands in
+  // the wrong place. Column A is filled on every row, so pointing at A:A makes
+  // it always append a fresh row starting at column A (the row itself can still
+  // be as wide as we like — it just spills right into B, C, ... S).
+  const range = "Sheet1!A:A";
   const url =
     "https://sheets.googleapis.com/v4/spreadsheets/" +
     sheetId +
@@ -91,7 +97,10 @@ async function appendRow(values) {
     throw new Error("Sheets append failed: " + text);
   }
 
-  return res.json();
+  const out = await res.json();
+  // Logged so Vercel > Logs shows exactly where each row landed (should start at A).
+  console.log("Sheets row appended at:", out && out.updates && out.updates.updatedRange);
+  return out;
 }
 
 module.exports = { appendRow };
