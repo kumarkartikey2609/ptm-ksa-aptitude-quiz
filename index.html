@@ -206,6 +206,10 @@
     <textarea id="f-experience" placeholder="Describe your work experience over the last 5 years in detail"></textarea>
     <label for="f-education">Educational Background *</label>
     <textarea id="f-education" placeholder="Describe your educational background"></textarea>
+    <label for="f-height">Height (cm / feet) *</label>
+    <input type="text" id="f-height" placeholder="Example: 165 cm  or  5 ft 4 in">
+    <label for="f-weight">Weight (Kg) *</label>
+    <input type="text" id="f-weight" inputmode="decimal" placeholder="Example: 58">
     <div id="start-error" class="error hidden"></div>
     <button class="btn" id="btn-start">Start Test</button>
   </div>
@@ -267,15 +271,23 @@
     const region = el("f-region").value.trim();
     const experience = el("f-experience").value.trim();
     const education = el("f-education").value.trim();
+    const height = el("f-height").value.trim();
+    const weight = el("f-weight").value.trim();
     const errEl = el("start-error");
 
-    if (!agencyName || !interviewDate || !name || !dob || !interviewCity || !region || !experience || !education) {
+    if (!agencyName || !interviewDate || !name || !dob || !interviewCity || !region || !experience || !education || !height || !weight) {
       errEl.textContent = "Please fill in all required fields before starting.";
       show("start-error");
       return;
     }
+    const weightNum = parseFloat(weight);
+    if (!(weightNum >= 20 && weightNum <= 250)) {
+      errEl.textContent = "Please enter your weight in kilograms (for example 58).";
+      show("start-error");
+      return;
+    }
     hide("start-error");
-    candidateInfo = { agencyName, interviewDate, name, dob, interviewCity, passport, region, experience, education };
+    candidateInfo = { agencyName, interviewDate, name, dob, interviewCity, passport, region, experience, education, height, weight };
 
     hide("screen-start");
     show("screen-loading");
@@ -398,6 +410,8 @@
           region: candidateInfo.region,
           experience: candidateInfo.experience,
           education: candidateInfo.education,
+          height: candidateInfo.height,
+          weight: candidateInfo.weight,
           setId: setId,
           answers: answers,
         }),
