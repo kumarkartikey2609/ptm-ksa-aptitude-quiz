@@ -69,7 +69,7 @@ async function appendRow(values) {
 
   const accessToken = await getAccessToken();
 
-  const range = "Sheet1!A:Q";
+  const range = "Sheet1!A:S";
   const url =
     "https://sheets.googleapis.com/v4/spreadsheets/" +
     sheetId +
