@@ -1,7 +1,7 @@
 const { QUESTIONS } = require("./_shared/questions.js");
 const { appendRow } = require("./_shared/sheets.js");
 
-const PASS_THRESHOLD = 70; // at least 14 of 20 questions must be correct
+const PASS_THRESHOLD = 75; // at least 15 of 20 questions must be correct
 
 // Returns height in centimetres, or null if it cannot be read with confidence.
 // Accepts: "165", "165 cm", "1.65 m", "1.65", "5 ft 4 in", "5ft4", "5'4", "5'4\"", "5 feet", "5 feet 4 inches".
