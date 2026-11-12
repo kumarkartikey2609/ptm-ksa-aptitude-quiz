@@ -1,34 +1,34 @@
 const { QUESTIONS } = require("./_shared/questions.js");
 
-// Every fine-grained question category maps to one of 5 scoring "buckets".
-// This keeps the existing category detail (Safety, Time, Attitude, Teamwork,
-// Lifestyle, etc.) intact for reporting, while the quiz itself is drawn as a
-// fixed quota across those 5 buckets, out of every 20 questions:
-//   Skill                  -> 7  (35%)
-//   Intent / Professionalism -> 7  (35%)
-//   Communication           -> 2  (10%)
-//   Honesty                 -> 2  (10%)
-//   Situation Handling      -> 2  (10%)
+// Every fine-grained question category maps to one of 4 topic "buckets".
+// This keeps the category detail (Safety, Time, Honesty, etc.) for reporting,
+// while each test is drawn as a fixed quota per bucket, out of 20 questions:
+//   Cleaning (skills, area-wise cleaning, SOP, safety)  -> 8  (40%)
+//   Customer handling                                   -> 4  (20%)
+//   Situations on the job (incl. honesty)               -> 4  (20%)
+//   Intent and time management                          -> 4  (20%)
 const BUCKET_MAP = {
-  Skill: "Skill",
-  Safety: "Skill",
-  Intent: "IntentProfessionalism",
-  Professionalism: "IntentProfessionalism",
-  Time: "IntentProfessionalism",
-  Attitude: "IntentProfessionalism",
-  Teamwork: "IntentProfessionalism",
-  Lifestyle: "IntentProfessionalism",
-  Communication: "Communication",
-  Honesty: "Honesty",
-  SituationHandling: "SituationHandling",
+  Skill: "Cleaning",
+  Safety: "Cleaning",
+  Area: "Cleaning",
+  SOP: "Cleaning",
+  Customer: "Customer",
+  Communication: "Customer",
+  Professionalism: "Customer",
+  SituationHandling: "Situation",
+  Honesty: "Situation",
+  Intent: "IntentTime",
+  Time: "IntentTime",
+  Attitude: "IntentTime",
+  Teamwork: "IntentTime",
+  Lifestyle: "IntentTime",
 };
 
 const QUOTA = {
-  Skill: 7,
-  IntentProfessionalism: 7,
-  Communication: 2,
-  Honesty: 2,
-  SituationHandling: 2,
+  Cleaning: 8,
+  Customer: 4,
+  Situation: 4,
+  IntentTime: 4,
 };
 
 function shuffle(arr) {
@@ -40,7 +40,7 @@ function shuffle(arr) {
   return a;
 }
 
-// Group the full question bank into the 5 buckets once (module load time).
+// Group the full question bank into the 4 buckets once (module load time).
 const byBucket = {};
 for (const q of QUESTIONS) {
   const bucket = BUCKET_MAP[q.cat];
