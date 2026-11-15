@@ -1,7 +1,12 @@
 const { QUESTIONS } = require("./_shared/questions.js");
 const { appendRow } = require("./_shared/sheets.js");
 
-const PASS_THRESHOLD = 75; // at least 15 of 20 questions must be correct
+const PASS_THRESHOLD = 75; // at least 75% correct (15 of 20 on a full test)
+// Time rule: the test is 20 minutes. If time runs out, the test is sent as it is.
+// A candidate who answered at least MIN_ANSWERED questions is judged on the
+// questions she answered (75% of those must be correct). Fewer than MIN_ANSWERED
+// answered = FAIL.
+const MIN_ANSWERED = 15;
 
 // Returns height in centimetres, or null if it cannot be read with confidence.
 // Accepts: "165", "165 cm", "1.65 m", "1.65", "5 ft 4 in", "5ft4", "5'4", "5'4\"", "5 feet", "5 feet 4 inches".
@@ -70,6 +75,7 @@ module.exports = async (req, res) => {
       ? Math.round((weightKg / Math.pow(heightCm / 100, 2)) * 10) / 10
       : "";
   const setId = String(body.setId || "").slice(0, 50);
+  const timedOut = body.timedOut === true || body.timedOut === "true";
   const answers = Array.isArray(body.answers) ? body.answers : [];
 
   if (!agencyName || !interviewDate || !name || !dob || !interviewCity || !region || !experience || !education || answers.length === 0) {
@@ -79,7 +85,8 @@ module.exports = async (req, res) => {
 
   const byId = new Map(QUESTIONS.map((q) => [q.id, q]));
   let score = 0;
-  let total = 0;
+  let total = 0; // questions in this test
+  let answered = 0; // questions the candidate actually answered
   const seen = new Set();
   // Per-question detail (question text, what the candidate picked, whether it
   // was correct) — kept in the order the candidate answered them, so we can
@@ -93,6 +100,7 @@ module.exports = async (req, res) => {
     const correctText = q.opts[q.correct];
     const selectedText = String(a.selected || "");
     const isCorrect = selectedText === correctText;
+    if (selectedText) answered += 1;
     if (isCorrect) score += 1;
     breakdown.push({
       questionText: q.q,
@@ -103,8 +111,13 @@ module.exports = async (req, res) => {
     });
   }
 
-  const percentage = total > 0 ? Math.round((score / total) * 100) : 0;
-  const result = percentage >= PASS_THRESHOLD ? "PASS" : "FAIL";
+  // Timed out: judged on the answered questions only (and needs >= MIN_ANSWERED).
+  // On time: judged on all questions served (unanswered would count as wrong).
+  const basis = timedOut ? answered : total;
+  const percentage = basis > 0 ? Math.round((score / basis) * 100) : 0;
+  const meetsPercent = basis > 0 && score * 100 >= PASS_THRESHOLD * basis;
+  const result = meetsPercent && (!timedOut || answered >= MIN_ANSWERED) ? "PASS" : "FAIL";
+  const submission = timedOut ? (answered < MIN_ANSWERED ? "Timed out - only " + answered + " answered" : "Timed out") : "On time";
   const now = new Date();
   const submittedAt = now.toISOString();
 
@@ -141,7 +154,7 @@ module.exports = async (req, res) => {
       region,
       setId,
       score,
-      total,
+      basis, // "Total" column: questions answered if timed out, otherwise questions in the test
       percentage,
       result,
       agencyName,
@@ -153,6 +166,8 @@ module.exports = async (req, res) => {
       height, // column R — Height (cm / feet)
       weight, // column S — Weight (kg)
       bmi, // column T — BMI (calculated)
+      answered, // column U — Answered (how many of the questions were answered)
+      submission, // column V — Submitted: "On time" or "Timed out"
     ]);
     sheetOk = true;
   } catch (e) {
@@ -164,7 +179,7 @@ module.exports = async (req, res) => {
   const repo = process.env.GITHUB_REPO;
 
   const passLabel = result === "PASS" ? "pass" : "fail";
-  const title = name + " — " + result + " (" + score + "/" + total + ")";
+  const title = name + " — " + result + " (" + score + "/" + basis + ")" + (timedOut ? " [TIMED OUT, answered " + answered + "/" + total + "]" : "");
 
   const breakdownLines = breakdown.map((b, i) => {
     const mark = b.isCorrect ? "✅" : "❌";
@@ -191,9 +206,11 @@ module.exports = async (req, res) => {
     "**Weight (kg):** " + (weight || "-"),
     "**BMI:** " + (bmi === "" ? "-" : bmi),
     "**Question Set ID:** " + setId,
-    "**Score:** " + score + " / " + total + " (" + percentage + "%)",
+    "**Score:** " + score + " / " + basis + " (" + percentage + "%)",
+    "**Answered:** " + answered + " of " + total + " questions",
+    "**Submitted:** " + submission + (timedOut ? " (20 minutes ended; judged on answered questions, minimum " + MIN_ANSWERED + " answered)" : ""),
     "**Result:** " + result,
-    "**Submitted:** " + ksaDate + " " + ksaTime + " (KSA time)",
+    "**Date/Time:** " + ksaDate + " " + ksaTime + " (KSA time)",
     "",
     "---",
     "",
@@ -238,7 +255,7 @@ module.exports = async (req, res) => {
 
   if (!githubOk) {
     // Shows up in Vercel > Logs so a broken token is noticed quickly.
-    console.error("GitHub issue NOT created for " + name + " (" + result + " " + score + "/" + total + "): " + githubError);
+    console.error("GitHub issue NOT created for " + name + " (" + result + " " + score + "/" + basis + "): " + githubError);
   }
 
   if (!sheetOk && !githubOk) {
@@ -246,5 +263,5 @@ module.exports = async (req, res) => {
     return;
   }
 
-  res.status(200).json({ score, total, percentage, result });
+  res.status(200).json({ score, total: basis, percentage, result });
 };
