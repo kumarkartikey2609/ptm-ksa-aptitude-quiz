@@ -166,8 +166,12 @@ module.exports = async (req, res) => {
       height, // column R — Height (cm / feet)
       weight, // column S — Weight (kg)
       bmi, // column T — BMI (calculated)
-      answered, // column U — Answered (how many of the questions were answered)
-      submission, // column V — Submitted: "On time" or "Timed out"
+      "", // column U — used by the team (Experience Remarks): leave empty
+      "", // column V — used by the team (Final Personal Interview): leave empty
+      "", // column W — used by the team (Remarks): leave empty
+      "", // column X — used by the team (Final Result - Personal Interview): leave empty
+      answered, // column Y — Answered (how many questions were answered)
+      submission, // column Z — Submission: "On time" or "Timed out"
     ]);
     sheetOk = true;
   } catch (e) {
