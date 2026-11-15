@@ -180,7 +180,7 @@ async function createStartedTab() {
 async function logStart({ name, agency, testId, setCount }) {
   const tz = await getSheetTimeZone();
   const statusFormula =
-    '=IF(COUNTIF(Sheet1!$G:$G,INDEX($E:$E,ROW()))>0,"Submitted",IF((NOW()-INDEX($F:$F,ROW()))*1440>' +
+    '=IF(COUNTIF(Sheet1!$H:$H,INDEX($E:$E,ROW()))>0,"Submitted",IF((NOW()-INDEX($F:$F,ROW()))*1440>' +
     NOT_SUBMITTED_AFTER_MIN +
     ',"Not submitted - FAIL","In progress"))';
   const row = [ksaNowText(), name, agency, "", testId, sheetSerialNow(tz), statusFormula];
