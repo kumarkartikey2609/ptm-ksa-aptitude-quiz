@@ -211,6 +211,9 @@
     <label for="f-weight">Weight (Kg) *</label>
     <input type="text" id="f-weight" inputmode="decimal" placeholder="Example: 58">
     <div id="start-error" class="error hidden"></div>
+    <div style="background:#fff8e1;border:1px solid #f0d98a;border-radius:8px;padding:10px 12px;margin:12px 0;font-size:14px;line-height:1.5;">
+      <b>Please read:</b> You have <b>20 minutes</b> for 20 questions. Try to answer <b>at least 15</b> questions. When the time ends, your test is sent by itself.
+    </div>
     <button class="btn" id="btn-start">Start Test</button>
   </div>
 
@@ -328,7 +331,7 @@
     show("screen-loading");
 
     try {
-      const res = await fetch("/api/get-quiz");
+      const res = await fetch("/api/get-quiz?name=" + encodeURIComponent(name) + "&agency=" + encodeURIComponent(agencyName), { cache: "no-store" });
       if (!res.ok) throw new Error("Failed to load quiz");
       const data = await res.json();
       quizQuestions = data.questions;
@@ -393,17 +396,20 @@
     el("progress-fill").style.width = pct + "%";
   }
 
+  // The timer counts to a fixed end time (not "minus 1 each second"), so
+  // switching tabs or a sleeping phone cannot give extra time.
   function startTimer() {
+    const endsAt = Date.now() + TEST_DURATION_SEC * 1000;
     secondsLeft = TEST_DURATION_SEC;
     updateTimerDisplay();
     timerInterval = setInterval(() => {
-      secondsLeft -= 1;
+      secondsLeft = Math.max(0, Math.ceil((endsAt - Date.now()) / 1000));
       updateTimerDisplay();
       if (secondsLeft <= 0) {
         clearInterval(timerInterval);
         submitTest(true);
       }
-    }, 1000);
+    }, 500);
   }
 
   function updateTimerDisplay() {
@@ -412,7 +418,7 @@
     el("timer").textContent = "Time remaining: " + m + ":" + String(s).padStart(2, "0");
   }
 
-  el("btn-submit").addEventListener("click", () => submitTest(false));
+  el("btn-submit").addEventListener("click", () => submitTest(secondsLeft <= 0));
 
   async function submitTest(auto) {
     const answers = quizQuestions.map((q) => {
@@ -431,6 +437,10 @@
     el("btn-submit").disabled = true;
     el("btn-submit").textContent = "Submitting…";
 
+    // When time is over the test is sent automatically. If the network fails we
+    // keep trying (the candidate cannot do anything more on the test anyway).
+    const maxTries = auto ? 6 : 1;
+    for (let attempt = 1; attempt <= maxTries; attempt++) {
     try {
       const res = await fetch("/api/submit-result", {
         method: "POST",
@@ -448,21 +458,31 @@
           height: candidateInfo.height,
           weight: candidateInfo.weight,
           setId: setId,
+          timedOut: !!auto,
           answers: answers,
         }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Submission failed");
-      showResult(data);
+      showResult(data, auto);
+      return;
     } catch (e) {
+      if (attempt < maxTries) {
+        await new Promise((r) => setTimeout(r, 4000));
+        continue;
+      }
       el("btn-submit").disabled = false;
       el("btn-submit").textContent = "Submit Test";
       alert("There was a problem submitting your test. Please check your connection and try again.");
     }
+    }
   }
 
-  function showResult(data) {
+  function showResult(data, auto) {
     hide("screen-quiz");
+    if (auto) {
+      el("result-label").textContent = "Time is over. Thank you for giving the test";
+    }
     show("screen-result");
   }
 })();
