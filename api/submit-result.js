@@ -137,6 +137,19 @@ module.exports = async (req, res) => {
     hour12: false,
   }).format(now); // e.g. "19:42:05"
 
+  // Age in whole years on the day of submission (KSA date), from the date of
+  // birth (YYYY-MM-DD from the date picker). Fixed number, never changes later.
+  let age = "";
+  {
+    const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(dob);
+    if (m) {
+      const [ty, tm, td] = ksaDate.split("-").map(Number);
+      let a = ty - Number(m[1]);
+      if (tm < Number(m[2]) || (tm === Number(m[2]) && td < Number(m[3]))) a--;
+      if (a >= 0 && a <= 120) age = a;
+    }
+  }
+
   // Write to Google Sheet immediately (synchronously, within this request).
   // Best-effort: a Sheets failure should not block the candidate's result.
   // NOTE: the Sheet intentionally stays a clean, scannable summary — it does
@@ -149,6 +162,7 @@ module.exports = async (req, res) => {
       ksaDate,
       name,
       dob,
+      age, // column D — Age (calculated on the submission day)
       interviewCity,
       passport,
       region,
@@ -159,19 +173,19 @@ module.exports = async (req, res) => {
       result,
       agencyName,
       interviewDate,
-      experience, // column N — Past Working Experience
-      education, // column O — Educational Background
-      "", // column P — intentionally blank (no header)
-      ksaTime, // column Q — submission time in KSA local time
-      height, // column R — Height (cm / feet)
-      weight, // column S — Weight (kg)
-      bmi, // column T — BMI (calculated)
-      "", // column U — used by the team (Experience Remarks): leave empty
-      "", // column V — used by the team (Final Personal Interview): leave empty
-      "", // column W — used by the team (Remarks): leave empty
-      "", // column X — used by the team (Final Result - Personal Interview): leave empty
-      answered, // column Y — Answered (how many questions were answered)
-      submission, // column Z — Submission: "On time" or "Timed out"
+      experience, // column O — Past Working Experience
+      education, // column P — Educational Background
+      "", // column Q — intentionally blank (no header)
+      ksaTime, // column R — submission time in KSA local time
+      height, // column S — Height (cm / feet)
+      weight, // column T — Weight (kg)
+      bmi, // column U — BMI (calculated)
+      "", // column V — used by the team (Experience Remarks): leave empty
+      "", // column W — used by the team (Final Personal Interview): leave empty
+      "", // column X — used by the team (Remarks): leave empty
+      "", // column Y — used by the team (Final Result - Personal Interview): leave empty
+      answered, // column Z — Answered (how many questions were answered)
+      submission, // column AA — Submission: "On time" or "Timed out"
     ]);
     sheetOk = true;
   } catch (e) {
@@ -200,7 +214,7 @@ module.exports = async (req, res) => {
     "**Agency Name:** " + agencyName,
     "**Interview Date:** " + interviewDate,
     "**Name:** " + name,
-    "**Date of Birth:** " + dob,
+    "**Date of Birth:** " + dob + (age === "" ? "" : " (age " + age + ")"),
     "**Interview City:** " + interviewCity,
     "**Passport Number:** " + (passport || "-"),
     "**Province/City/Region:** " + region,
